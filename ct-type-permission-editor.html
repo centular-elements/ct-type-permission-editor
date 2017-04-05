@@ -1,0 +1,113 @@
+<link rel="import" href="../polymer/polymer.html">
+
+<link rel="import" href="../iron-flex-layout/iron-flex-layout-classes.html">
+
+<link rel="import" href="../paper-dropdown-menu/paper-dropdown-menu.html">
+<link rel="import" href="../paper-material/paper-material.html">
+
+<link rel="import" href="../ct-permissions-api/ct-permissions-api.html">
+<link rel="import" href="../ct-resource-types-api/ct-resource-types-api.html">
+
+
+<!--
+`ct-type-permission-editor`
+Element for resource type permission editing
+
+@demo demo/index.html 
+-->
+
+<dom-module id="ct-type-permission-editor">
+  <template>
+    <style include="iron-flex iron-flex-alignment">
+      :host {
+        display: block;
+      }
+      paper-material {
+        margin: 10px;
+        background-color: white;
+      }
+      .column-header {
+        max-width: 100px;
+      }
+    </style>
+
+    <ct-permissions-api id="permissionsApi"></ct-permissions-api>
+    <ct-resource-types-api id="resourceTypesApi"></ct-resource-types-api>
+
+    <paper-dropdown-menu label="Category" selected="0">
+      <paper-listbox class="dropdown-content">
+        <template is="dom-repeat" items="[[ _categories ]]" as="category">
+          <paper-item category="[[ category ]]" on-tap="_categorySelected">[[ category ]]</paper-item>
+        </template>
+      </paper-listbox>
+    </paper-dropdown-menu>
+
+    <div class="layout horizontal">
+      <paper-material elevation="1">
+        <div class="layout horizontal">
+          <div class="layout flex column-header">RESOURCE TYPE</div>
+          <div class="layout flex column-header">PERMISSION</div>
+        </div>
+        <template is="dom-repeat" items="[[ _resourceTypes ]]" as="resourceType">
+          <div>[[ resourceType.name ]]</div>
+          <template is="dom-repeat" items="[[ _resourceTypes ]]" as="resourceType">
+
+          </template>
+        </template>
+      </paper-material>
+
+      <paper-material elevation="1">
+
+      </paper-material>
+    </div>
+
+
+  </template>
+
+  <script>
+    Polymer({
+
+      is: 'ct-type-permission-editor',
+
+      properties: {
+        subjectId: String,
+        subjectResourceTypeId: String
+      },
+
+      observers: [
+        '_getResourceTypePermissions(subjectId, subjectResourceTypeId)'
+      ],
+
+      ready: function() {
+        this.$.resourceTypesApi.findResourceTypes()
+                .then(function (request) {
+                  this._resourceTypes = request.response;
+                  this._categories = Array.from(new Set(this._resourceTypes.map(function(resourceType) {
+                    return resourceType.category;
+                  })))
+                }.bind(this))
+                .catch(function (error) {
+                }.bind(this));
+      },
+
+      _getResourceTypePermissions: function() {
+        this.$.permissionsApi.getResourceTypeAccess(this.subjectId, this.subjectResourceTypeId)
+                .then(function (request) {
+                  this._resourceTypePermissions = request.response;
+
+                }.bind(this))
+                .catch(function (error) {
+                }.bind(this));
+      },
+
+      _categorySelected: function(e) {
+
+      },
+
+      _viewResourceTypes(category) {
+
+      }
+
+    });
+  </script>
+</dom-module>
