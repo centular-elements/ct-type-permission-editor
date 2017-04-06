@@ -9,15 +9,50 @@
         <style include="iron-flex iron-flex-alignment">
             :host {
                 display: block;
+                @apply(--layout-horizontal);
+                @apply(--layout-flex);
             }
         </style>
 
         <div class="layout flex horizontal center-justified">
-            <paper-icon-button icon="icons:check-circle" on-tap="_permissionTapped" permission-type="create"></paper-icon-button>
-            <paper-badge class="granted" icon="icons:check" label="granted"></paper-badge>
-            <paper-badge icon="icons:block" label="denied"></paper-badge>
+            <paper-icon-button icon="[[ _calculateButtonIcon(1, _granted, _denied) ]]"
+                               on-tap="_permissionTapped"
+                               identifier="[[ identifier ]],1">
+                <template is="dom-if" if="[[ inheritedPermissions && _hasInheritedPermission(1) ]]" as="inherited">
+                    <paper-badge icon="icons:supervisor-account" label="Inherited"></paper-badge>
+                </template>
+            </paper-icon-button>
         </div>
-
+        <div class="layout flex horizontal center-justified">
+            <paper-icon-button icon="[[ _calculateButtonIcon(2, _granted, _denied) ]]"
+                               on-tap="_permissionTapped"
+                               permission-type="read"
+                               identifier="[[ identifier ]],2">
+                <template is="dom-if" if="[[ inheritedPermissions && _hasInheritedPermission(2) ]]" as="inherited">
+                    <paper-badge icon="icons:supervisor-account" label="Inherited"></paper-badge>
+                </template>
+            </paper-icon-button>
+        </div>
+        <div class="layout flex horizontal center-justified">
+            <paper-icon-button icon="[[ _calculateButtonIcon(4, _granted, _denied) ]]"
+                               on-tap="_permissionTapped"
+                               permission-type="update"
+                               identifier="[[ identifier ]],4">
+                <template is="dom-if" if="[[ inheritedPermissions && _hasInheritedPermission(4) ]]" as="inherited">
+                    <paper-badge icon="icons:supervisor-account" label="Inherited"></paper-badge>
+                </template>
+            </paper-icon-button>
+        </div>
+        <div class="layout flex horizontal center-justified">
+            <paper-icon-button icon="[[ _calculateButtonIcon(8, _granted, _denied) ]]"
+                               on-tap="_permissionTapped"
+                               permission-type="delete"
+                               identifier="[[ identifier ]],8">
+                <template is="dom-if" if="[[ inheritedPermissions && _hasInheritedPermission(8) ]]" as="inherited">
+                    <paper-badge icon="icons:supervisor-account" label="Inherited"></paper-badge>
+                </template>
+            </paper-icon-button>
+        </div>
     </template>
 
     <script>
@@ -25,13 +60,56 @@
             is: 'ct-permission-indicator',
 
             properties: {
+                identifier: String,
                 /**
-                 * GRANTED, DENIED, NONE
-                 **/
-                state: String,
-                inherited: Array
+                 * [{access: String, value: Integer}]
+                 */
+                permissions: Array,
+                /**
+                 * [{access: String, value: Integer}]
+                 */
+                inheritedPermissions: Array
             },
 
+            observers: [
+                '_unpackPermissions(permissions, inheritedPermissions)'
+            ],
+
+            _unpackPermissions: function() {
+                var granted = this.permissions.find(function(p) {
+                    return p.access == 'GRANTED';
+                });
+                this._granted = granted ? granted.value : 0;
+
+                var denied = this.permissions.find(function(p) {
+                    return p.access == 'DENIED';
+                });
+                this._denied = denied ? denied.value : 0;
+            },
+
+            _calculateButtonIcon: function(action, grantedValue, deniedValue) {
+                if (this._isOn(action, deniedValue)) {
+                    return 'icons:block'
+                }
+                if (this._isOn(action, grantedValue)) {
+                    return 'icons:check'
+                }
+                return 'icons:check-box-outline-blank'
+            },
+
+            _hasInheritedPermission: function(action) {
+                return this.inheritedPermissions.some(function(p) {
+                    return this._isOn(action, p.value);
+                }.bind(this))
+            },
+
+            _isOn(action, value) {
+                return (action & value) == action;
+            },
+
+            _permissionTapped: function(e) {
+                this.fire('ct-permission-selected', e.currentTarget.identifier)
+            }
         });
     </script>
 </dom-module>

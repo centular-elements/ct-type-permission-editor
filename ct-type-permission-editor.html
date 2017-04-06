@@ -1,14 +1,19 @@
 <link rel="import" href="../polymer/polymer.html">
 
+
 <link rel="import" href="../iron-flex-layout/iron-flex-layout-classes.html">
 
 <link rel="import" href="../paper-dropdown-menu/paper-dropdown-menu.html">
 <link rel="import" href="../paper-material/paper-material.html">
 <link rel="import" href="../paper-icon-button/paper-icon-button.html">
 <link rel="import" href="../paper-badge/paper-badge.html">
+<link rel="import" href="../paper-item/paper-item.html">
+<link rel="import" href="../paper-item/paper-icon-item.html">
 
 <link rel="import" href="../ct-permissions-api/ct-permissions-api.html">
 <link rel="import" href="../ct-resource-types-api/ct-resource-types-api.html">
+<link rel="import" href="ct-permission-indicator.html">
+
 
 
 <!--
@@ -27,18 +32,34 @@ Element for resource type permission editing
       paper-material {
         background-color: white;
       }
-      .column-header {
-        min-width: 250px;
-        max-width: 250px;
-        border: thick black;
+      .resource-type-column-header {
+        border-width: thick;
+        padding: 10px;
+        min-width: 150px;
       }
-      .some-cell {
-        min-width: 250px;
-        max-width: 250px;
+      .permissions-column-header {
+        padding: 10px;
+        min-width: 300px;
       }
-      .granted {
-        --paper-badge-margin-left: -25px;
-        --paper-badge-margin-bottom: 0px;
+      .resource-type-cell {
+        min-width: 150px;
+      }
+      .field-cell {
+        min-width: 120px;
+        font-style: italic;
+        padding-left: 30px;
+      }
+      .permission-cell {
+        min-width: 300px;
+      }
+      .row {
+        border: medium black;
+        --paper-item-focused-before: {
+          background-color: transparent;
+        }
+      }
+      .row:hover {
+        background: lightgray;
       }
     </style>
 
@@ -56,53 +77,54 @@ Element for resource type permission editing
     <div class="layout horizontal">
       <paper-material elevation="1">
         <div class="layout horizontal">
-          <div class="layout horizontal column-header">
-            <div class="layout flex">RESOURCE TYPE</div>
-            <div class="layout flex horizontal end-justified">FIELD</div>
+          <div class="layout horizontal resource-type-column-header">
+            <span class="layout flex">RESOURCE TYPE</span>
           </div>
-          <div class="layout horizontal column-header">
+          <div class="layout horizontal permissions-column-header">
             <div class="layout flex horizontal center-justified">CREATE</div>
             <div class="layout flex horizontal center-justified">READ</div>
             <div class="layout flex horizontal center-justified">UPDATE</div>
             <div class="layout flex horizontal center-justified">DELETE</div>
           </div>
         </div>
-        <template is="dom-repeat" items="[[ _resourceTypes ]]" as="resourceType">
-          <div class="layout horizontal">
-            <div class="some-cell">[[ resourceType.name ]]</div>
-            <div class="layout horizontal some-cell">
-              <div class="layout flex horizontal center-justified">
-                <paper-icon-button icon="icons:check-circle" on-tap="_permissionTapped" permission-type="create"></paper-icon-button>
-                <paper-badge class="granted" icon="icons:check" label="granted"></paper-badge>
-                <paper-badge icon="icons:block" label="denied"></paper-badge>
+        <template is="dom-if" if="[[ _resourceTypePermissions ]]" as="resourceType">
+          <template is="dom-repeat" items="[[ _resourceTypes ]]" as="resourceType">
+            <paper-item class="row">
+              <div class="resource-type-cell">
+                [[ resourceType.name ]]
               </div>
-              <div class="layout flex horizontal center-justified">
-                <paper-icon-button icon="icons:cancel" on-tap="_permissionTapped" permission-type="read"></paper-icon-button>
-              </div>
-              <div class="layout flex horizontal center-justified">
-                <paper-icon-button icon="icons:radio-button-checked" on-tap="_permissionTapped" permission-type="update"></paper-icon-button>
-              </div>
-              <div class="layout flex horizontal center-justified">
-                <paper-icon-button icon="icons:radio-button-unchecked" on-tap="_permissionTapped" permission-type="delete"></paper-icon-button>
-              </div>
-            </div>
-          </div>
-          <template is="dom-repeat" items="[[ resourceType.fields ]]" as="field">
-            <div class="layout horizontal">
-              <div class="layout horizontal end-justified some-cell">[[ field ]]</div>
-              <div class="layout horizontal some-cell">
-                <paper-icon-button icon="icons:check-circle"></paper-icon-button>
-                <paper-icon-button icon="icons:cancel"></paper-icon-button>
-                <paper-icon-button icon="icons:radio-button-checked"></paper-icon-button>
-                <paper-icon-button icon="icons:radio-button-unchecked"></paper-icon-button>
-              </div>
-            </div>
+              <ct-permission-indicator class="permission-cell"
+                                       permissions="[[ _mapPermissionsForIndication(resourceType) ]]"
+                                       inherited-permissions="[[ _mapInheritedForIndication(resourceType) ]]"
+                                       identifier="[[ resourceType.id ]]"
+              ></ct-permission-indicator>
+            </paper-item>
+            <template is="dom-repeat" items="[[ resourceType.fields ]]" as="field">
+              <paper-item class="row">
+                <div class="field-cell">
+                  [[ field ]]
+                </div>
+                <ct-permission-indicator class="permission-cell"
+                                         permissions="[[ _mapFieldPermissionsForIndication(resourceType, field) ]]"
+                                         inherited-permissions="[[ _mapInheritedFieldPermissionsForIndication(resourceType, field) ]]"
+                                         identifier="[[ resourceType.id]],[[ field ]]"
+                ></ct-permission-indicator>
+              </paper-item>
+            </template>
           </template>
         </template>
       </paper-material>
 
-      <paper-material elevation="1">
-
+      <paper-material class="layout vertical" elevation="1">
+        <span>[[ _actionToText(_selectedAction) ]] [[ _selectedResourceTypeName ]] [[ _selectedFieldName ]]</span>
+        <template is="dom-repeat" items="[[ _selectedPermissionDetail ]]" as="perm">
+          <span>[[ perm.access ]] by [[ perm.givenBy ]]</span>
+        </template>
+        <div class="layout horizontal centre-justified">
+          <paper-button>Granted</paper-button>
+          <paper-button>Denied</paper-button>
+          <paper-button>Cleared/Inherited</paper-button>
+        </div>
       </paper-material>
     </div>
 
@@ -117,6 +139,10 @@ Element for resource type permission editing
       properties: {
         subjectId: String,
         subjectResourceTypeId: String
+      },
+
+      listeners: {
+        'ct-permission-selected':'_permissionSelected'
       },
 
       observers: [
@@ -146,8 +172,6 @@ Element for resource type permission editing
                 }.bind(this));
       },
 
-
-
       _categorySelected: function(e) {
 
       },
@@ -156,22 +180,120 @@ Element for resource type permission editing
 
       },
 
-      _calculateResourceTypePermissionIcon(action, resourceType) {
-        var permissions = this._resourceTypePermissions.find(function(rtp) {
-          return rtp.toResourceType.id == resourceType && rtp.givenBy.id == this.subjectId;
-        });
+      _filterResourceTypePermissions: function(resourceTypeId) {
+        return this._resourceTypePermissions.filter(function(p) {
+          return p.toResourceType.id == resourceTypeId;
+        })
+      },
 
-        var inheritedPermissions = this._resourceTypePermissions.find(function(rtp) {
-          return rtp.toResourceType.id == resourceType && rtp.givenBy.id != this.subjectId;
-        });
+      _filterSubjectPermissions: function(permissions) {
+        return permissions.filter(function(p) {
+          return p.givenBy.id == this.subjectId;
+        }.bind(this))
+      },
 
+      _filterInheritedPermissions: function(permissions) {
+        return permissions.filter(function(p) {
+          return p.givenBy.id != this.subjectId;
+        }.bind(this))
+      },
 
-
-        if (permissions.length > 0 && permissions[0].access == "GRANTED") {
-          var permittedAction = permissions[0].permission & action;
-          if (permittedAction == action) {
-
+      _mapPermissionsForIndication: function(resourceType) {
+        var permissions = this._filterSubjectPermissions(this._filterResourceTypePermissions(resourceType.id)).map(function(p) {
+          return {
+            access: p.permission.access,
+            value: p.permission.permission
           }
+        });
+
+        return permissions == null ? [] : permissions
+      },
+
+      _mapInheritedForIndication: function(resourceType) {
+        var permissions = this._filterInheritedPermissions(this._filterResourceTypePermissions(resourceType.id)).map(function(p) {
+          return {
+            access: p.permission.access,
+            value: p.permission.permission
+          }
+        });
+
+        return permissions == null ? [] : permissions
+      },
+
+      _mapFieldPermissionsForIndication: function(resourceType, field) {
+        var permissions = this._filterSubjectPermissions(this._filterResourceTypePermissions(resourceType.id)).map(function(p) {
+          var fieldPermission = p.permission.fieldPermissions.find(function(fp) {
+            return fp.name == field;
+          });
+          return {
+            access: p.permission.access,
+            value: fieldPermission ? fieldPermission.permission : 0
+          }
+        });
+
+        return permissions == null ? [] : permissions
+      },
+
+      _mapInheritedFieldPermissionsForIndication: function(resourceType, field) {
+        var permissions = this._filterInheritedPermissions(this._filterResourceTypePermissions(resourceType.id)).map(function(p) {
+          var fieldPermission = p.permission.fieldPermissions.find(function(fp) {
+            return fp.name == field;
+          });
+          return {
+            access: p.permission.access,
+            value: fieldPermission ? fieldPermission.permission : 0
+          }
+        });
+
+        return permissions == null ? [] : permissions
+      },
+
+      _permissionSelected: function(e, detail) {
+        var spl = detail.split(',');
+        if (spl.length > 2) {
+          this._selectedPermissionDetail = this._getSelectedPermissionDetail(spl[0], spl[1], spl[2]);
+          this._selectedFieldName = spl[1];
+          this._selectedAction = spl[2];
+        } else {
+          this._selectedPermissionDetail = this._getSelectedPermissionDetail(spl[0], null, spl[1]);
+          this._selectedFieldName = '';
+          this._selectedAction = spl[1];
+        }
+        this._selectedResourceTypeName = this._resourceTypes.find(function(t) {
+          return t.id == spl[0]
+        }).name;
+      },
+
+      _getSelectedPermissionDetail: function(selectedResourceTypeId, selectedField, selectedAction) {
+        if (selectedField) {
+          var permissions = this._filterInheritedPermissions(this._filterResourceTypePermissions(selectedResourceTypeId)).filter(function(p) {
+            var fieldPermission = p.permission.fieldPermissions.find(function(fp) {
+              return fp.name == selectedField;
+            });
+            return fieldPermission ? (fieldPermission.permission & selectedAction) == selectedAction : false;
+          }).map(function(p) {
+            return {
+              access: p.permission.access,
+              givenBy: p.givenBy.name
+            }
+          });
+
+          return permissions == null ? [] : permissions
+        }
+      },
+
+      _actionToText: function(action) {
+        if (action == 1) {
+          return 'Create'
+        }
+        if (action == 2) {
+          return 'Read'
+        }
+        if (action == 4) {
+          return 'Update'
+        }
+        if (action == 8) {
+          return 'Delete'
         }
       }
 
