@@ -4,6 +4,8 @@
 
 <link rel="import" href="../paper-dropdown-menu/paper-dropdown-menu.html">
 <link rel="import" href="../paper-material/paper-material.html">
+<link rel="import" href="../paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../paper-badge/paper-badge.html">
 
 <link rel="import" href="../ct-permissions-api/ct-permissions-api.html">
 <link rel="import" href="../ct-resource-types-api/ct-resource-types-api.html">
@@ -13,7 +15,7 @@
 `ct-type-permission-editor`
 Element for resource type permission editing
 
-@demo demo/index.html 
+@demo demo/index.html
 -->
 
 <dom-module id="ct-type-permission-editor">
@@ -23,11 +25,20 @@ Element for resource type permission editing
         display: block;
       }
       paper-material {
-        margin: 10px;
         background-color: white;
       }
       .column-header {
-        max-width: 100px;
+        min-width: 250px;
+        max-width: 250px;
+        border: thick black;
+      }
+      .some-cell {
+        min-width: 250px;
+        max-width: 250px;
+      }
+      .granted {
+        --paper-badge-margin-left: -25px;
+        --paper-badge-margin-bottom: 0px;
       }
     </style>
 
@@ -45,13 +56,47 @@ Element for resource type permission editing
     <div class="layout horizontal">
       <paper-material elevation="1">
         <div class="layout horizontal">
-          <div class="layout flex column-header">RESOURCE TYPE</div>
-          <div class="layout flex column-header">PERMISSION</div>
+          <div class="layout horizontal column-header">
+            <div class="layout flex">RESOURCE TYPE</div>
+            <div class="layout flex horizontal end-justified">FIELD</div>
+          </div>
+          <div class="layout horizontal column-header">
+            <div class="layout flex horizontal center-justified">CREATE</div>
+            <div class="layout flex horizontal center-justified">READ</div>
+            <div class="layout flex horizontal center-justified">UPDATE</div>
+            <div class="layout flex horizontal center-justified">DELETE</div>
+          </div>
         </div>
         <template is="dom-repeat" items="[[ _resourceTypes ]]" as="resourceType">
-          <div>[[ resourceType.name ]]</div>
-          <template is="dom-repeat" items="[[ _resourceTypes ]]" as="resourceType">
-
+          <div class="layout horizontal">
+            <div class="some-cell">[[ resourceType.name ]]</div>
+            <div class="layout horizontal some-cell">
+              <div class="layout flex horizontal center-justified">
+                <paper-icon-button icon="icons:check-circle" on-tap="_permissionTapped" permission-type="create"></paper-icon-button>
+                <paper-badge class="granted" icon="icons:check" label="granted"></paper-badge>
+                <paper-badge icon="icons:block" label="denied"></paper-badge>
+              </div>
+              <div class="layout flex horizontal center-justified">
+                <paper-icon-button icon="icons:cancel" on-tap="_permissionTapped" permission-type="read"></paper-icon-button>
+              </div>
+              <div class="layout flex horizontal center-justified">
+                <paper-icon-button icon="icons:radio-button-checked" on-tap="_permissionTapped" permission-type="update"></paper-icon-button>
+              </div>
+              <div class="layout flex horizontal center-justified">
+                <paper-icon-button icon="icons:radio-button-unchecked" on-tap="_permissionTapped" permission-type="delete"></paper-icon-button>
+              </div>
+            </div>
+          </div>
+          <template is="dom-repeat" items="[[ resourceType.fields ]]" as="field">
+            <div class="layout horizontal">
+              <div class="layout horizontal end-justified some-cell">[[ field ]]</div>
+              <div class="layout horizontal some-cell">
+                <paper-icon-button icon="icons:check-circle"></paper-icon-button>
+                <paper-icon-button icon="icons:cancel"></paper-icon-button>
+                <paper-icon-button icon="icons:radio-button-checked"></paper-icon-button>
+                <paper-icon-button icon="icons:radio-button-unchecked"></paper-icon-button>
+              </div>
+            </div>
           </template>
         </template>
       </paper-material>
@@ -84,7 +129,8 @@ Element for resource type permission editing
                   this._resourceTypes = request.response;
                   this._categories = Array.from(new Set(this._resourceTypes.map(function(resourceType) {
                     return resourceType.category;
-                  })))
+                  })));
+                  console.log('done');
                 }.bind(this))
                 .catch(function (error) {
                 }.bind(this));
@@ -94,11 +140,13 @@ Element for resource type permission editing
         this.$.permissionsApi.getResourceTypeAccess(this.subjectId, this.subjectResourceTypeId)
                 .then(function (request) {
                   this._resourceTypePermissions = request.response;
-
+                  console.log('done');
                 }.bind(this))
                 .catch(function (error) {
                 }.bind(this));
       },
+
+
 
       _categorySelected: function(e) {
 
@@ -106,6 +154,25 @@ Element for resource type permission editing
 
       _viewResourceTypes(category) {
 
+      },
+
+      _calculateResourceTypePermissionIcon(action, resourceType) {
+        var permissions = this._resourceTypePermissions.find(function(rtp) {
+          return rtp.toResourceType.id == resourceType && rtp.givenBy.id == this.subjectId;
+        });
+
+        var inheritedPermissions = this._resourceTypePermissions.find(function(rtp) {
+          return rtp.toResourceType.id == resourceType && rtp.givenBy.id != this.subjectId;
+        });
+
+
+
+        if (permissions.length > 0 && permissions[0].access == "GRANTED") {
+          var permittedAction = permissions[0].permission & action;
+          if (permittedAction == action) {
+
+          }
+        }
       }
 
     });

@@ -1,0 +1,37 @@
+<link rel="import" href="../polymer/polymer.html">
+
+<link rel="import" href="../iron-flex-layout/iron-flex-layout-classes.html">
+<link rel="import" href="../paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../paper-badge/paper-badge.html">
+
+<dom-module id="ct-permission-indicator">
+    <template>
+        <style include="iron-flex iron-flex-alignment">
+            :host {
+                display: block;
+            }
+        </style>
+
+        <div class="layout flex horizontal center-justified">
+            <paper-icon-button icon="icons:check-circle" on-tap="_permissionTapped" permission-type="create"></paper-icon-button>
+            <paper-badge class="granted" icon="icons:check" label="granted"></paper-badge>
+            <paper-badge icon="icons:block" label="denied"></paper-badge>
+        </div>
+
+    </template>
+
+    <script>
+        Polymer({
+            is: 'ct-permission-indicator',
+
+            properties: {
+                /**
+                 * GRANTED, DENIED, NONE
+                 **/
+                state: String,
+                inherited: Array
+            },
+
+        });
+    </script>
+</dom-module>
