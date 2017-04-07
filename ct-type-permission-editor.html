@@ -12,7 +12,7 @@
 
 <link rel="import" href="../ct-permissions-api/ct-permissions-api.html">
 <link rel="import" href="../ct-resource-types-api/ct-resource-types-api.html">
-<link rel="import" href="ct-permission-indicator.html">
+<link rel="import" href="ct-permission-toggle.html">
 
 
 
@@ -53,7 +53,6 @@ Element for resource type permission editing
         min-width: 300px;
       }
       .row {
-        border: medium black;
         --paper-item-focused-before: {
           background-color: transparent;
         }
@@ -64,57 +63,29 @@ Element for resource type permission editing
     </style>
 
     <ct-permissions-api id="permissionsApi"></ct-permissions-api>
-    <ct-resource-types-api id="resourceTypesApi"></ct-resource-types-api>
 
-    <paper-dropdown-menu label="Category" selected="0">
-      <paper-listbox class="dropdown-content">
-        <template is="dom-repeat" items="[[ _categories ]]" as="category">
-          <paper-item category="[[ category ]]" on-tap="_categorySelected">[[ category ]]</paper-item>
-        </template>
-      </paper-listbox>
-    </paper-dropdown-menu>
-
-    <div class="layout horizontal">
-      <paper-material elevation="1">
-        <div class="layout horizontal">
-          <div class="layout horizontal resource-type-column-header">
-            <span class="layout flex">RESOURCE TYPE</span>
-          </div>
-          <div class="layout horizontal permissions-column-header">
-            <div class="layout flex horizontal center-justified">CREATE</div>
-            <div class="layout flex horizontal center-justified">READ</div>
-            <div class="layout flex horizontal center-justified">UPDATE</div>
-            <div class="layout flex horizontal center-justified">DELETE</div>
-          </div>
+    <paper-material elevation="1">
+      <paper-item class="row">
+        <div class="resource-type-cell">
+          [[ resourceType.name ]]
         </div>
-        <template is="dom-if" if="[[ _resourceTypePermissions ]]" as="resourceType">
-          <template is="dom-repeat" items="[[ _resourceTypes ]]" as="resourceType">
-            <paper-item class="row">
-              <div class="resource-type-cell">
-                [[ resourceType.name ]]
-              </div>
-              <ct-permission-indicator class="permission-cell"
-                                       permissions="[[ _mapPermissionsForIndication(resourceType) ]]"
-                                       inherited-permissions="[[ _mapInheritedForIndication(resourceType) ]]"
-                                       identifier="[[ resourceType.id ]]"
-              ></ct-permission-indicator>
-            </paper-item>
-            <template is="dom-repeat" items="[[ resourceType.fields ]]" as="field">
-              <paper-item class="row">
-                <div class="field-cell">
-                  [[ field ]]
-                </div>
-                <ct-permission-indicator class="permission-cell"
-                                         permissions="[[ _mapFieldPermissionsForIndication(resourceType, field) ]]"
-                                         inherited-permissions="[[ _mapInheritedFieldPermissionsForIndication(resourceType, field) ]]"
-                                         identifier="[[ resourceType.id]],[[ field ]]"
-                ></ct-permission-indicator>
-              </paper-item>
-            </template>
-          </template>
-        </template>
-      </paper-material>
+        <ct-permission-toggle id="typeToggle" granted-value="[[ _grantedValue ]]" denied-value="[[ _deniedValue ]]"></ct-permission-toggle>
+      </paper-item>
+    </paper-material>
+    <paper-material>
+      <template is="dom-repeat" items="[[ resourceType.fields ]]" as="field">
+        <paper-item class="row">
+          <div class="field-cell">
+            [[ field ]]
+          </div>
+          <ct-permission-toggle id="fieldToggle[[ field ]]" granted-value="0" denied-value="0"></ct-permission-toggle>
+        </paper-item>
+      </template>
+    </paper-material>
 
+
+
+<!--
       <paper-material class="layout vertical" elevation="1">
         <span>[[ _actionToText(_selectedAction) ]] [[ _selectedResourceTypeName ]] [[ _selectedFieldName ]]</span>
         <template is="dom-repeat" items="[[ _selectedPermissionDetail ]]" as="perm">
@@ -126,7 +97,7 @@ Element for resource type permission editing
           <paper-button>Cleared/Inherited</paper-button>
         </div>
       </paper-material>
-    </div>
+-->
 
 
   </template>
@@ -137,64 +108,63 @@ Element for resource type permission editing
       is: 'ct-type-permission-editor',
 
       properties: {
-        subjectId: String,
-        subjectResourceTypeId: String
+        /**
+         * The subject who's permissions you want to edit
+         * {id: String, resourceTypeId: String}
+         */
+        subject: Object,
+
+        /**
+         * The resource type on which to apply permission for the subject
+         * {id: String, name: String, systemTypeId: String }
+         */
+        resourceType: Object
       },
 
       listeners: {
-        'ct-permission-selected':'_permissionSelected'
+        'ct-apply-permission':'_applyPermission'
       },
 
       observers: [
-        '_getResourceTypePermissions(subjectId, subjectResourceTypeId)'
+        '_fetchPermissions(subject, resourceType)'
       ],
 
-      ready: function() {
-        this.$.resourceTypesApi.findResourceTypes()
+      _fetchPermissions: function() {
+        this.$.permissionsApi.viewResourceTypePermissions(this.subject, { id: this.resourceType.id, systemTypeId: this.resourceType.systemTypeId })
                 .then(function (request) {
-                  this._resourceTypes = request.response;
-                  this._categories = Array.from(new Set(this._resourceTypes.map(function(resourceType) {
-                    return resourceType.category;
-                  })));
-                  console.log('done');
+                  this._permissions = this._filterSubjectPermissions(request.response);
+                  this._grantedValue = this._getGranted(this._permissions).permission.permission;
+                  this._deniedValue = this._getDenied(this._permissions).permission.permission;
+                  this._inheritedPermissions = this._filterInheritedPermissions(request.response);
                 }.bind(this))
                 .catch(function (error) {
                 }.bind(this));
       },
 
-      _getResourceTypePermissions: function() {
-        this.$.permissionsApi.getResourceTypeAccess(this.subjectId, this.subjectResourceTypeId)
-                .then(function (request) {
-                  this._resourceTypePermissions = request.response;
-                  console.log('done');
-                }.bind(this))
-                .catch(function (error) {
-                }.bind(this));
+      _getGranted: function(permissions) {
+        var granted = permissions.find(function(p) {
+          return p.permission.access == 'GRANTED';
+        });
+        return granted ? granted : { permission: { access: "GRANTED", permission: 0 }, givenBy: this.subject }
       },
 
-      _categorySelected: function(e) {
-
+      _getDenied: function(permissions) {
+        var denied = permissions.find(function(p) {
+          return p.permission.access == 'DENIED';
+        });
+        return denied ? denied : { permission: { access: "DENIED", permission: 0 }, givenBy: this.subject }
       },
 
-      _viewResourceTypes(category) {
-
-      },
-
-      _filterResourceTypePermissions: function(resourceTypeId) {
-        return this._resourceTypePermissions.filter(function(p) {
-          return p.toResourceType.id == resourceTypeId;
-        })
-      },
 
       _filterSubjectPermissions: function(permissions) {
         return permissions.filter(function(p) {
-          return p.givenBy.id == this.subjectId;
+          return p.givenBy.id == this.subject.id;
         }.bind(this))
       },
 
       _filterInheritedPermissions: function(permissions) {
         return permissions.filter(function(p) {
-          return p.givenBy.id != this.subjectId;
+          return p.givenBy.id != this.subject.id;
         }.bind(this))
       },
 
@@ -295,6 +265,11 @@ Element for resource type permission editing
         if (action == 8) {
           return 'Delete'
         }
+      },
+
+      _applyPermission: function(e, detail) {
+        console.log(e.srcElement.id);
+        console.log(detail);
       }
 
     });

@@ -10,17 +10,35 @@
 
     <link rel="import" href="../../iron-demo-helpers/demo-pages-shared-styles.html">
     <link rel="import" href="../../iron-demo-helpers/demo-snippet.html">
+    <link rel="import" href="../../ct-core-utils/ct-config.html">
+    <link rel="import" href="../../ct-core-utils/ct-user-identity.html">
     <link rel="import" href="../ct-type-permission-editor.html">
 
     <style is="custom-style" include="demo-pages-shared-styles">
     </style>
   </head>
   <body>
+
     <div class="vertical-section-container centered">
+
       <h3>Basic ct-type-permission-editor demo</h3>
       <demo-snippet>
         <template>
-          <ct-type-permission-editor></ct-type-permission-editor>
+          <ct-config
+                  client-id=""
+                  token-redirect-uri=""
+                  auth-host-url=""
+                  api-host-url="http://localhost:8000"
+          ></ct-config>
+
+          <ct-user-identity
+                  token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiI5MWU0MTJmNGY2YmY0NjkyYmI5ZTA4OTFmYjI1MGMwYiIsImRpZCI6IjU1NTZhODBkLWNiNTMtNGRiZi05NTAwLTA2MjdhMDM2NmYyMyIsImNpZCI6IjJhYzVhNTVjLWZhZjAtNDQ5OC1iNWI1LTU1ODMwMGNiYzFmZSIsInVpZCI6ImZlZDk1ODkxLTZlN2YtNGM2ZS05NTFhLTJkM2ViMTkyYjQ0NyIsImp0aSI6ImQxZDMzOTQwLTk5OGQtNDk4Yi1hODEyLTgyYzAwNjU5NzMyMSIsImV4cCI6MTQ5MTY1MTA4OX0.v-HjruMJj3oxET0CXNmS6RzsTufI6D9UbJl5jvqH18c"
+          ></ct-user-identity>
+
+          <ct-type-permission-editor
+                  subject='{ "id": "1bc57ef4-77cc-4d04-b623-b4b673df3b57", "resourceTypeId": "application.type.role" }'
+                  resource-type='{ "id": "application.type.user", "name": "User", "systemTypeId": "system.type.principal" }'
+          ></ct-type-permission-editor>
         </template>
       </demo-snippet>
     </div>

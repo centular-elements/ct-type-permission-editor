@@ -1,0 +1,162 @@
+<link rel="import" href="../polymer/polymer.html">
+
+<link rel="import" href="../iron-flex-layout/iron-flex-layout-classes.html">
+<link rel="import" href="../iron-icon/iron-icon.html">
+
+<link rel="import" href="../paper-button/paper-button.html">
+<link rel="import" href="../paper-badge/paper-badge.html">
+
+<dom-module id="ct-permission-toggle">
+    <template>
+        <style include="iron-flex iron-flex-alignment">
+            :host {
+                display: block;
+                @apply(--layout-horizontal);
+                @apply(--layout-flex);
+            }
+            .granted {
+                color: green;
+            }
+            .denied {
+                color: red;
+            }
+            .none {
+                color: grey;
+            }
+        </style>
+
+        <div class="layout flex horizontal center-justified">
+            <paper-button id="createButton"
+                           action="1"
+                           on-tap="_actionTapped">
+                <iron-icon id="createIcon" icon="icons:check-box-outline-blank"></iron-icon>
+                CREATE
+            </paper-button>
+        </div>
+        <div class="layout flex horizontal center-justified">
+            <paper-button  id="viewButton"
+                          action="2"
+                          on-tap="_actionTapped">
+                <iron-icon id="viewIcon" icon="icons:check-box-outline-blank"></iron-icon>
+                VIEW
+            </paper-button>
+        </div>
+        <div class="layout flex horizontal center-justified">
+            <paper-button id="updateButton"
+                          action="4"
+                          on-tap="_actionTapped">
+                <iron-icon id="updateIcon" icon="icons:check-box-outline-blank"></iron-icon>
+                UPDATE
+            </paper-button>
+        </div>
+        <div class="layout flex horizontal center-justified">
+            <paper-button id="deleteButton"
+                          action="8"
+                          on-tap="_actionTapped">
+                <iron-icon id="deleteIcon" icon="icons:check-box-outline-blank"></iron-icon>
+                DELETE
+            </paper-button>
+        </div>
+        <paper-button id="applyButton" on-tap="_applyTapped" raised disabled>APPLY</paper-button>
+    </template>
+
+    <script>
+        Polymer({
+            is: 'ct-permission-toggle',
+
+            properties: {
+                /**
+                 * Granted value
+                 */
+                grantedValue: Number,
+                /**
+                 * [{access: String, value: Integer}]
+                 */
+                deniedValue: Number
+            },
+
+            observers: [
+                '_setValues(grantedValue, deniedValue)'
+            ],
+
+            _setValues: function() {
+                this._grantedValue = this.grantedValue;
+                this._deniedValue = this.deniedValue;
+                this._updateView();
+            },
+
+            _updateView: function() {
+                this.$.createIcon.icon = this._getIcon(1);
+                this._setAccess(this.$.createButton);
+                this.$.viewIcon.icon = this._getIcon(2);
+                this._setAccess(this.$.viewButton);
+                this.$.updateIcon.icon = this._getIcon(4);
+                this._setAccess(this.$.updateButton);
+                this.$.deleteIcon.icon = this._getIcon(8);
+                this._setAccess(this.$.deleteButton);
+            },
+
+            _getIcon: function(action) {
+                if (this._isOn(action, this._deniedValue)) {
+                    return 'icons:block'
+                }
+                if (this._isOn(action, this._grantedValue)) {
+                    return 'icons:check'
+                }
+                return 'icons:check-box-outline-blank'
+            },
+
+            _setAccess: function(button) {
+                button.toggleClass('granted', false);
+                button.toggleClass('denied', false);
+                button.toggleClass('none', false);
+                var access = this._getAccess(parseInt(button.attributes.getNamedItem('action').nodeValue));
+                button.toggleClass(access, true);
+                button.access = access;
+
+            },
+
+            _getAccess: function(action) {
+                if (this._isOn(action, this._deniedValue)) {
+                    return 'denied'
+                }
+                if (this._isOn(action, this._grantedValue)) {
+                    return 'granted'
+                }
+                return 'none'
+            },
+
+            _isOn(action, value) {
+                return (action & value) == action;
+            },
+
+            _actionTapped: function(e) {
+                var action = parseInt(e.currentTarget.attributes.getNamedItem('action').nodeValue);
+                var currentAccess = e.currentTarget.access;
+                if (currentAccess == 'none') {
+                    this._grantedValue = this._grantedValue | action;
+                    this._deniedValue = this._deniedValue & (~action);
+                }
+
+                if (currentAccess == 'granted') {
+                    this._grantedValue = this._grantedValue & (~action);
+                    this._deniedValue = this._deniedValue | action;
+                }
+
+                if (currentAccess == 'denied') {
+                    this._grantedValue = this._grantedValue & (~action);
+                    this._deniedValue = this._deniedValue & (~action);
+                }
+
+                this._updateView();
+
+                this.$.applyButton.disabled = !(this._grantedValue != this.grantedValue || this._deniedValue != this.deniedValue);
+            },
+
+            _applyTapped: function() {
+                this.$.applyButton.disabled = true;
+                this.fire('ct-apply-permission', { granted: this._grantedValue, denied: this._deniedValue });
+            }
+        });
+    </script>
+</dom-module>
