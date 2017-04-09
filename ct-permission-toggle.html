@@ -23,12 +23,15 @@
             .none {
                 color: grey;
             }
+            paper-button[disabled] {
+                background: transparent;
+            }
         </style>
 
         <div class="layout flex horizontal center-justified">
             <paper-button id="createButton"
                            action="1"
-                           on-tap="_actionTapped">
+                           on-tap="_actionTapped"  disabled$="[[ readOnly ]]">
                 <iron-icon id="createIcon" icon="icons:check-box-outline-blank"></iron-icon>
                 CREATE
             </paper-button>
@@ -36,7 +39,7 @@
         <div class="layout flex horizontal center-justified">
             <paper-button  id="viewButton"
                           action="2"
-                          on-tap="_actionTapped">
+                          on-tap="_actionTapped"  disabled$="[[ readOnly ]]">
                 <iron-icon id="viewIcon" icon="icons:check-box-outline-blank"></iron-icon>
                 VIEW
             </paper-button>
@@ -44,7 +47,7 @@
         <div class="layout flex horizontal center-justified">
             <paper-button id="updateButton"
                           action="4"
-                          on-tap="_actionTapped">
+                          on-tap="_actionTapped"  disabled$="[[ readOnly ]]">
                 <iron-icon id="updateIcon" icon="icons:check-box-outline-blank"></iron-icon>
                 UPDATE
             </paper-button>
@@ -52,12 +55,12 @@
         <div class="layout flex horizontal center-justified">
             <paper-button id="deleteButton"
                           action="8"
-                          on-tap="_actionTapped">
+                          on-tap="_actionTapped"  disabled$="[[ readOnly ]]">
                 <iron-icon id="deleteIcon" icon="icons:check-box-outline-blank"></iron-icon>
                 DELETE
             </paper-button>
         </div>
-        <paper-button id="applyButton" on-tap="_applyTapped" raised disabled>APPLY</paper-button>
+        <paper-button id="applyButton" on-tap="_applyTapped" raised disabled hidden$="[[ readOnly ]]">APPLY</paper-button>
     </template>
 
     <script>
@@ -65,6 +68,10 @@
             is: 'ct-permission-toggle',
 
             properties: {
+                readOnly: {
+                    type: Boolean,
+                    value: false
+                },
                 /**
                  * Granted value
                  */

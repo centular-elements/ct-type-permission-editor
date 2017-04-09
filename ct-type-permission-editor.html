@@ -2,13 +2,14 @@
 
 
 <link rel="import" href="../iron-flex-layout/iron-flex-layout-classes.html">
+<link rel="import" href="../iron-collapse/iron-collapse.html">
 
 <link rel="import" href="../paper-dropdown-menu/paper-dropdown-menu.html">
 <link rel="import" href="../paper-material/paper-material.html">
 <link rel="import" href="../paper-icon-button/paper-icon-button.html">
 <link rel="import" href="../paper-badge/paper-badge.html">
+<link rel="import" href="../paper-listbox/paper-listbox.html">
 <link rel="import" href="../paper-item/paper-item.html">
-<link rel="import" href="../paper-item/paper-icon-item.html">
 
 <link rel="import" href="../ct-permissions-api/ct-permissions-api.html">
 <link rel="import" href="../ct-resource-types-api/ct-resource-types-api.html">
@@ -32,58 +33,97 @@ Element for resource type permission editing
       paper-material {
         background-color: white;
       }
-      .resource-type-column-header {
-        border-width: thick;
-        padding: 10px;
-        min-width: 150px;
-      }
-      .permissions-column-header {
-        padding: 10px;
-        min-width: 300px;
-      }
       .resource-type-cell {
         min-width: 150px;
+        max-width: 150px;
       }
       .field-cell {
         min-width: 120px;
+        max-width: 120px;
         font-style: italic;
         padding-left: 30px;
       }
-      .permission-cell {
-        min-width: 300px;
+      .implied-permission-cell {
+        min-width: 250px;
       }
-      .row {
-        --paper-item-focused-before: {
-          background-color: transparent;
-        }
-      }
-      .row:hover {
+      paper-item:hover {
         background: lightgray;
       }
     </style>
 
     <ct-permissions-api id="permissionsApi"></ct-permissions-api>
 
-    <paper-material elevation="1">
-      <paper-item class="row">
-        <div class="resource-type-cell">
-          [[ resourceType.name ]]
-        </div>
-        <ct-permission-toggle id="typeToggle" granted-value="[[ _grantedValue ]]" denied-value="[[ _deniedValue ]]"></ct-permission-toggle>
-      </paper-item>
-    </paper-material>
-    <paper-material>
-      <template is="dom-repeat" items="[[ resourceType.fields ]]" as="field">
-        <paper-item class="row">
-          <div class="field-cell">
-            [[ field ]]
+    <paper-listbox id="list">
+      <paper-item>
+        <div class="layout vertical">
+          <div class="layout horizontal">
+            <div class="resource-type-cell">
+              [[ resourceType.name ]]
+            </div>
+            <ct-permission-toggle
+                    id="typeToggle"
+                    granted-value="[[ _getPermissionValue('GRANTED', _permissions) ]]"
+                    denied-value="[[ _getPermissionValue('DENIED', _permissions) ]]"
+            ></ct-permission-toggle>
           </div>
-          <ct-permission-toggle id="fieldToggle[[ field ]]" granted-value="0" denied-value="0"></ct-permission-toggle>
+          <iron-collapse id="collapse">
+            <div class="layout horizontal">
+              <span class="resource-type-cell"></span>
+              <span>Implied Permissions</span>
+            </div>
+            <template is="dom-repeat" items="[[ _getImpliedSubjects(_impliedPermissions) ]]" as="impliedBy">
+              <div class="layout horizontal" elevation="0">
+                <div class="resource-type-cell">
+                  [[ impliedBy.name ]]
+                </div>
+                <div class="implied-permission-cell">
+                  <ct-permission-toggle read-only
+                                        granted-value="[[ _getImpliedPermissionValue('GRANTED', impliedBy) ]]"
+                                        denied-value="[[ _getImpliedPermissionValue('DENIED', impliedBy) ]]"
+                  ></ct-permission-toggle>
+                </div>
+              </div>
+            </template>
+          </iron-collapse>
+        </div>
+      </paper-item>
+
+      <template is="dom-repeat" items="[[ resourceType.fields ]]" as="field">
+        <paper-item tag="[[ field ]]">
+          <div class="layout vertical">
+            <div class="layout horizontal">
+              <div class="field-cell">
+                [[ field ]]
+              </div>
+              <ct-permission-toggle
+                      id="fieldToggle[[ field ]]"
+                      granted-value="[[ _getPermissionFieldValue('GRANTED', _permissions, field) ]]"
+                      denied-value="[[ _getPermissionFieldValue('DENIED', _permissions, field) ]]"
+              ></ct-permission-toggle>
+            </div>
+            <iron-collapse id="collapse[[ field ]]">
+              <div class="layout horizontal">
+                <span class="resource-type-cell"></span>
+                <span>Implied Permissions</span>
+              </div>
+              <template is="dom-repeat" items="[[ _getImpliedSubjects(_impliedPermissions) ]]" as="impliedBy">
+                <div class="layout horizontal" elevation="0">
+                  <div class="field-cell">
+                    [[ impliedBy.name ]]
+                  </div>
+                  <div class="implied-permission-cell">
+                    <ct-permission-toggle read-only
+                                          granted-value="[[ _getImpliedFieldPermissionValue('GRANTED', impliedBy, field) ]]"
+                                          denied-value="[[ _getImpliedFieldPermissionValue('DENIED', impliedBy, field) ]]"
+                    ></ct-permission-toggle>
+                  </div>
+                </div>
+              </template>
+            </iron-collapse>
+          </div>
         </paper-item>
       </template>
-    </paper-material>
-
-
+    </paper-listbox>
 
 <!--
       <paper-material class="layout vertical" elevation="1">
@@ -116,12 +156,14 @@ Element for resource type permission editing
 
         /**
          * The resource type on which to apply permission for the subject
-         * {id: String, name: String, systemTypeId: String }
+         * {id: String, name: String, fields: Array, systemTypeId: String }
          */
         resourceType: Object
       },
 
       listeners: {
+        'iron-select': '_resourceTypeSelected',
+        'iron-deselect': '_resourceTypeDeselected',
         'ct-apply-permission':'_applyPermission'
       },
 
@@ -133,28 +175,12 @@ Element for resource type permission editing
         this.$.permissionsApi.viewResourceTypePermissions(this.subject, { id: this.resourceType.id, systemTypeId: this.resourceType.systemTypeId })
                 .then(function (request) {
                   this._permissions = this._filterSubjectPermissions(request.response);
-                  this._grantedValue = this._getGranted(this._permissions).permission.permission;
-                  this._deniedValue = this._getDenied(this._permissions).permission.permission;
-                  this._inheritedPermissions = this._filterInheritedPermissions(request.response);
+                  this._impliedPermissions = this._filterInheritedPermissions(request.response);
+                  this._permissionsLoaded = true;
                 }.bind(this))
                 .catch(function (error) {
                 }.bind(this));
       },
-
-      _getGranted: function(permissions) {
-        var granted = permissions.find(function(p) {
-          return p.permission.access == 'GRANTED';
-        });
-        return granted ? granted : { permission: { access: "GRANTED", permission: 0 }, givenBy: this.subject }
-      },
-
-      _getDenied: function(permissions) {
-        var denied = permissions.find(function(p) {
-          return p.permission.access == 'DENIED';
-        });
-        return denied ? denied : { permission: { access: "DENIED", permission: 0 }, givenBy: this.subject }
-      },
-
 
       _filterSubjectPermissions: function(permissions) {
         return permissions.filter(function(p) {
@@ -168,108 +194,61 @@ Element for resource type permission editing
         }.bind(this))
       },
 
-      _mapPermissionsForIndication: function(resourceType) {
-        var permissions = this._filterSubjectPermissions(this._filterResourceTypePermissions(resourceType.id)).map(function(p) {
-          return {
-            access: p.permission.access,
-            value: p.permission.permission
-          }
+      _getPermissionValue: function(access, permissions) {
+        var grantedPermission = permissions.find(function(p) {
+          return p.permission.access == access;
         });
 
-        return permissions == null ? [] : permissions
+        return grantedPermission ? grantedPermission.permission.permission : 0;
       },
 
-      _mapInheritedForIndication: function(resourceType) {
-        var permissions = this._filterInheritedPermissions(this._filterResourceTypePermissions(resourceType.id)).map(function(p) {
-          return {
-            access: p.permission.access,
-            value: p.permission.permission
-          }
+      _getPermissionFieldValue: function(access, permissions, field) {
+        var grantedPermission = permissions.find(function(p) {
+          return p.permission.access == access;
         });
 
-        return permissions == null ? [] : permissions
-      },
-
-      _mapFieldPermissionsForIndication: function(resourceType, field) {
-        var permissions = this._filterSubjectPermissions(this._filterResourceTypePermissions(resourceType.id)).map(function(p) {
-          var fieldPermission = p.permission.fieldPermissions.find(function(fp) {
-            return fp.name == field;
+        if (grantedPermission) {
+          var fieldPermission = grantedPermission.permission.fieldPermissions.find(function(f) {
+            return f.name == field;
           });
-          return {
-            access: p.permission.access,
-            value: fieldPermission ? fieldPermission.permission : 0
-          }
-        });
-
-        return permissions == null ? [] : permissions
-      },
-
-      _mapInheritedFieldPermissionsForIndication: function(resourceType, field) {
-        var permissions = this._filterInheritedPermissions(this._filterResourceTypePermissions(resourceType.id)).map(function(p) {
-          var fieldPermission = p.permission.fieldPermissions.find(function(fp) {
-            return fp.name == field;
-          });
-          return {
-            access: p.permission.access,
-            value: fieldPermission ? fieldPermission.permission : 0
-          }
-        });
-
-        return permissions == null ? [] : permissions
-      },
-
-      _permissionSelected: function(e, detail) {
-        var spl = detail.split(',');
-        if (spl.length > 2) {
-          this._selectedPermissionDetail = this._getSelectedPermissionDetail(spl[0], spl[1], spl[2]);
-          this._selectedFieldName = spl[1];
-          this._selectedAction = spl[2];
+          return fieldPermission ? fieldPermission.permission : 0;
         } else {
-          this._selectedPermissionDetail = this._getSelectedPermissionDetail(spl[0], null, spl[1]);
-          this._selectedFieldName = '';
-          this._selectedAction = spl[1];
-        }
-        this._selectedResourceTypeName = this._resourceTypes.find(function(t) {
-          return t.id == spl[0]
-        }).name;
-      },
-
-      _getSelectedPermissionDetail: function(selectedResourceTypeId, selectedField, selectedAction) {
-        if (selectedField) {
-          var permissions = this._filterInheritedPermissions(this._filterResourceTypePermissions(selectedResourceTypeId)).filter(function(p) {
-            var fieldPermission = p.permission.fieldPermissions.find(function(fp) {
-              return fp.name == selectedField;
-            });
-            return fieldPermission ? (fieldPermission.permission & selectedAction) == selectedAction : false;
-          }).map(function(p) {
-            return {
-              access: p.permission.access,
-              givenBy: p.givenBy.name
-            }
-          });
-
-          return permissions == null ? [] : permissions
+          return 0;
         }
       },
 
-      _actionToText: function(action) {
-        if (action == 1) {
-          return 'Create'
-        }
-        if (action == 2) {
-          return 'Read'
-        }
-        if (action == 4) {
-          return 'Update'
-        }
-        if (action == 8) {
-          return 'Delete'
-        }
+      _getImpliedSubjects: function(permissions) {
+        return Array.from(new Set(permissions.map(function(p) {
+          return p.givenBy;
+        })));
+      },
+
+      _getImpliedPermissionValue: function(access, impliedBy) {
+        return this._getPermissionValue(access, this._impliedPermissions.filter(function(p) {
+          return p.givenBy.id == impliedBy.id;
+        }));
+      },
+
+      _getImpliedFieldPermissionValue: function(access, impliedBy, field) {
+        return this._getPermissionFieldValue(access, this._impliedPermissions.filter(function(p) {
+          return p.givenBy.id == impliedBy.id;
+        }), field);
       },
 
       _applyPermission: function(e, detail) {
         console.log(e.srcElement.id);
         console.log(detail);
+      },
+
+      _resourceTypeSelected: function(e, detail) {
+        var collapseId = '#collapse' + (detail.item.tag ? detail.item.tag : '');
+        Polymer.dom(this.$.list).querySelector(collapseId).toggle();
+        this.fire('iron-select', e);
+      },
+      _resourceTypeDeselected: function(e, detail) {
+        var collapseId = '#collapse' + (detail.item.tag ? detail.item.tag : '');
+        Polymer.dom(this.$.list).querySelector(collapseId).toggle();
+        this.fire('iron-deselect', e);
       }
 
     });
