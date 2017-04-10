@@ -235,25 +235,27 @@ Element for resource type permission editing
       },
 
       _applyPermission: function(e, detail) {
-        var currentGranted = this._permissions.find(function(p) { return p.permission.access == 'GRANTED' });
-        currentGranted = currentGranted ? currentGranted.permission : { access: 'GRANTED', permission: 0, fieldPermissions: [] };
+        var grantedPermission = this._permissions.find(function(p) { return p.permission.access == 'GRANTED' });
+        grantedPermission = grantedPermission ? grantedPermission.permission : { access: 'GRANTED', permission: 0, fieldPermissions: [] };
 
-        var currentDenied = this._permissions.find(function(p) { return p.permission.access == 'DENIED' });
-        currentDenied = currentDenied ? currentDenied.permission : { access: 'DENIED', permission: 0, fieldPermissions: [] };
+        var deniedPermission = this._permissions.find(function(p) { return p.permission.access == 'DENIED' });
+        deniedPermission = deniedPermission ? deniedPermission.permission : { access: 'DENIED', permission: 0, fieldPermissions: [] };
 
         if (e.srcElement.field) {
-          var newGrantedFieldPermissions = currentGranted.fieldPermissions.filter(function(fp) { return fp.name != e.srcElement.field });
+          var newGrantedFieldPermissions = grantedPermission.fieldPermissions.filter(function(fp) { return fp.name != e.srcElement.field });
           newGrantedFieldPermissions.push({ name: e.srcElement.field, permission: detail.granted });
-          var newDeniedFieldPermissions = currentDenied.fieldPermissions.filter(function(fp) { return fp.name != e.srcElement.field });
+          var newDeniedFieldPermissions = deniedPermission.fieldPermissions.filter(function(fp) { return fp.name != e.srcElement.field });
           newDeniedFieldPermissions.push({ name: e.srcElement.field, permission: detail.denied });
+          grantedPermission.fieldPermissions = newGrantedFieldPermissions;
+          deniedPermission.fieldPermissions = newDeniedFieldPermissions;
         } else {
-          currentGranted.permission = detail.granted;
-          currentDenied.permission = detail.denied;
+          grantedPermission.permission = detail.granted;
+          deniedPermission.permission = detail.denied;
         }
 
         var newPermissions =
-                [ { resourceTypeId: e.srcElement.resourceType.id, permission: currentGranted },
-                  { resourceTypeId: e.srcElement.resourceType.id, permission: currentDenied } ];
+                [ { resourceTypeId: e.srcElement.resourceType.id, permission: grantedPermission },
+                  { resourceTypeId: e.srcElement.resourceType.id, permission: deniedPermission } ];
 
         this.$.permissionsApi.setResourceTypePermissions({ subject: this.subject, permissions: newPermissions })
                 .then(function (request) {
